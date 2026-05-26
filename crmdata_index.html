@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTSA — CRM Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg:       #0c0c0c;
+  --s1:       #131313;
+  --s2:       #1a1a1a;
+  --s3:       #222;
+  --b1:       #282828;
+  --b2:       #333;
+  --b3:       #444;
+  --txt:      #ffffff;
+  --txt2:     #cccccc;
+  --txt3:     #999999;
+  --lime:     #ffffff;
+  --mint:     #7de8a8;
+  --sky:      #60b8f0;
+  --amber:    #f0b860;
+  --rose:     #f06070;
+  --purple:   #b060f0;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* ── SETUP BANNER ── */
+#setup-banner {
+  background: #1a1200;
+  border-bottom: 1px solid #4a3000;
+  padding: 12px 32px;
+  color: var(--amber);
+  font-size: 12px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+}
+#setup-banner.show { display: flex; }
+#setup-banner a { color: var(--amber); }
+#setup-banner strong { color: #ffd060; }
+
+/* ── HEADER ── */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--s1);
+  border-bottom: 1px solid var(--b1);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  gap: 24px;
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: .1em;
+  color: var(--lime);
+  white-space: nowrap;
+}
+.logo em { color: var(--txt3); font-style: normal; font-weight: 500; font-size: 13px; }
+
+.tab-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 16px;
+}
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--txt2);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .04em;
+}
+.tab-btn:hover { color: var(--txt); }
+.tab-btn.active {
+  background: var(--s3);
+  border-color: var(--b2);
+  color: var(--txt);
+}
+.tab-badge {
+  display: inline-block;
+  background: var(--b1);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--txt2);
+  margin-left: 4px;
+}
+.tab-btn.active .tab-badge { background: #ffffff; color: #0c0c0c; }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sync-btn {
+  background: none;
+  border: 1px solid var(--b2);
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: var(--txt2);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sync-btn:hover { color: #ffffff; border-color: #ffffff; }
+.sync-btn.loading { opacity: .5; pointer-events: none; }
+.sync-icon { font-size: 13px; transition: transform .5s; }
+.sync-btn.loading .sync-icon { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.last-sync { font-size: 10px; color: var(--txt3); }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--b1);
+  background: var(--s1);
+  flex-wrap: wrap;
+}
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: 4px;
+  padding: 7px 12px;
+  width: 260px;
+}
+.search-wrap input {
+  background: none; border: none; outline: none;
+  color: var(--txt);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  width: 100%;
+}
+.search-wrap input::placeholder { color: var(--txt3); }
+
+.filters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.f-btn {
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--txt2);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: .03em;
+}
+.f-btn:hover { border-color: var(--b2); color: var(--txt); }
+.f-btn.on { background: #ffffff; border-color: #ffffff; color: #0c0c0c; font-weight: 500; }
+
+.toolbar-right { margin-left: auto; }
+.export-btn {
+  background: none;
+  border: 1px solid var(--b2);
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: var(--txt2);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.export-btn:hover { color: #ffffff; border-color: #ffffff; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: flex;
+  gap: 1px;
+  background: var(--b1);
+  border-bottom: 1px solid var(--b1);
+}
+.stat-card {
+  flex: 1;
+  background: var(--s1);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-label {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  font-family: 'Syne', sans-serif;
+}
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--txt);
+}
+.stat-val.green  { color: var(--mint); }
+.stat-val.yellow { color: var(--amber); }
+.stat-val.blue   { color: var(--sky); }
+.stat-sub {
+  font-size: 10px;
+  color: var(--txt3);
+}
+
+/* ── TABLE ── */
+.table-wrap {
+  overflow-x: auto;
+  padding: 0 32px 40px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  min-width: 1080px;
+}
+thead th {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--b1);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover { color: var(--txt2); }
+thead th.asc::after  { content: ' ↑'; color: #ffffff; }
+thead th.desc::after { content: ' ↓'; color: #ffffff; }
+
+tbody tr {
+  border-bottom: 1px solid var(--b1);
+  transition: background .1s;
+}
+tbody tr:hover { background: var(--s2); }
+tbody tr.saving { opacity: .6; }
+
+td { padding: 11px 12px; vertical-align: middle; }
+
+/* cells */
+.c-name   { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; }
+.c-co     { font-size: 11px; color: var(--txt2); margin-top: 2px; }
+.c-email  { color: var(--sky); font-size: 11px; text-decoration: none; }
+.c-email:hover { text-decoration: underline; }
+.c-loc    { color: var(--txt2); font-size: 12px; }
+.c-date   { color: var(--txt3); font-size: 11px; white-space: nowrap; }
+.c-ref    { color: var(--txt3); font-size: 11px; }
+
+/* STATUS select */
+.s-sel {
+  appearance: none;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 22px 4px 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: .02em;
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23888' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: opacity .15s;
+}
+.s-sel:focus { outline: 1px solid #ffffff; outline-offset: 2px; }
+.s-nc  { background: #1c1c1c; color: #555; }
+.s-ro  { background: #0f1e30; color: var(--sky); }
+.s-rs  { background: #1e1030; color: var(--purple); }
+.s-ic  { background: #2a2210; color: var(--amber); }
+.s-cv  { background: #0f2a18; color: var(--mint); }
+.s-ni  { background: #2a0f10; color: var(--rose); }
+
+/* INDUSTRY select */
+.i-sel {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 20px 3px 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--txt2);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l3 3 3-3' stroke='%23555' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  transition: all .15s;
+}
+.i-sel:hover { border-color: var(--b2); background-color: var(--s2); color: var(--txt); }
+.i-sel:focus { outline: 1px solid #ffffff; outline-offset: 2px; }
+
+/* NOTES */
+.n-wrap { min-width: 180px; max-width: 260px; }
+.n-ta {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--txt2);
+  width: 100%;
+  resize: none;
+  height: 28px;
+  overflow: hidden;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.n-ta:hover { border-color: var(--b2); background: var(--s2); color: var(--txt); }
+.n-ta:focus { border-color: #ffffff; background: var(--s2); color: var(--txt); outline: none; height: 62px; white-space: normal; }
+.n-ta::placeholder { color: var(--txt3); }
+
+/* LINK input */
+.lnk-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--sky);
+  width: 140px;
+  transition: all .15s;
+}
+.lnk-input:hover { border-color: var(--b2); background: var(--s2); }
+.lnk-input:focus { border-color: #ffffff; background: var(--s2); outline: none; }
+.lnk-input::placeholder { color: var(--txt3); }
+
+/* empty */
+.empty { text-align: center; padding: 80px 0; color: var(--txt3); display: none; }
+.empty.show { display: block; }
+
+/* loading skeleton */
+.skeleton { background: var(--s2); border-radius: 3px; animation: pulse 1.4s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+
+/* ── FOOTER STATS ── */
+.foot {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--s1);
+  border-top: 1px solid var(--b1);
+  padding: 9px 32px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  font-size: 11px;
+  color: var(--txt3);
+  z-index: 100;
+}
+.foot strong { color: var(--txt); }
+.foot .pipe { color: var(--b2); }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 56px; right: 28px;
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  border-radius: 4px;
+  padding: 9px 16px;
+  font-size: 12px;
+  color: var(--txt);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all .2s;
+  pointer-events: none;
+  z-index: 300;
+}
+.toast.saved  { border-color: #ffffff; color: #ffffff; }
+.toast.error  { border-color: var(--rose); color: var(--rose); }
+.toast.show   { opacity: 1; transform: translateY(0); }
+
+/* ── ERROR STATE ── */
+.error-state {
+  display: none;
+  text-align: center;
+  padding: 60px 32px;
+  color: var(--txt2);
+}
+.error-state.show { display: block; }
+.error-state h3 { font-family:'Syne',sans-serif; font-size:16px; color:var(--rose); margin-bottom:12px; }
+.error-state code { background:var(--s2); padding:4px 8px; border-radius:3px; font-size:12px; }
+
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:var(--s1); }
+::-webkit-scrollbar-thumb { background:var(--b2); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- ── SETUP BANNER (shown when SCRIPT_URL is placeholder) ── -->
+<div id="setup-banner" class="show">
+  ⚠ <strong>Setup needed:</strong> Paste your Google Apps Script URL into <code>SCRIPT_URL</code> at the top of this file, then re-save and push to GitHub.
+  See the setup guide for instructions.
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo"><img src="https://cdn.shopify.com/s/files/1/0770/7089/3249/files/btsa-logo-written.png?v=1779813501" alt="BTSA" style="height:22px;width:auto;vertical-align:middle;margin-right:10px;"><em>/ CRM</em></div>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('b2b', this)">
+      B2B Wholesale <span class="tab-badge" id="badge-b2b">–</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('retail', this)">
+      D2C Retail <span class="tab-badge" id="badge-retail">–</span>
+    </button>
+  </nav>
+
+  <div class="header-right">
+    <span class="last-sync" id="last-sync">Never synced</span>
+    <button class="sync-btn" id="sync-btn" onclick="fetchData()">
+      <span class="sync-icon">↻</span> Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── TOOLBAR ── -->
+<div class="toolbar">
+  <div class="search-wrap">
+    <span style="color:var(--txt3);font-size:11px">⌕</span>
+    <input id="search" type="text" placeholder="Search name, company, email, city…" oninput="render()">
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="f-btn on"  data-f="all"            onclick="setFilter('all',this)">All</button>
+    <button class="f-btn"     data-f="not-contacted"  onclick="setFilter('not-contacted',this)">Not Contacted</button>
+    <button class="f-btn"     data-f="reached-out"    onclick="setFilter('reached-out',this)">Reached Out</button>
+    <button class="f-btn"     data-f="in-conversation" onclick="setFilter('in-conversation',this)">In Conversation</button>
+    <button class="f-btn"     data-f="converted"      onclick="setFilter('converted',this)">Converted</button>
+    <button class="f-btn"     data-f="not-interested" onclick="setFilter('not-interested',this)">Not Interested</button>
+  </div>
+
+  <div class="toolbar-right">
+    <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+  </div>
+</div>
+
+<!-- ── STATS ROW ── -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Signups</div>
+    <div class="stat-val" id="st-total">–</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Not Contacted</div>
+    <div class="stat-val yellow" id="st-nc">–</div>
+    <div class="stat-sub">Need outreach</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">In Conversation</div>
+    <div class="stat-val blue" id="st-ic">–</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Converted</div>
+    <div class="stat-val green" id="st-cv">–</div>
+    <div class="stat-sub">Active accounts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Conversion Rate</div>
+    <div class="stat-val" id="st-rate">–</div>
+  </div>
+</div>
+
+<!-- ── TABLE ── -->
+<div class="table-wrap">
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th onclick="sort('firstName')">Account</th>
+        <th onclick="sort('email')">Contact</th>
+        <th onclick="sort('city')">Location</th>
+        <th onclick="sort('referral')">Source</th>
+        <th onclick="sort('date')">Signed Up</th>
+        <th>Industry / Type</th>
+        <th>Outreach Status</th>
+        <th class="n-wrap">Notes</th>
+        <th>Account Link</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="empty">No accounts match this filter.</div>
+  <div class="error-state" id="err-state">
+    <h3>Couldn't connect to Google Sheets</h3>
+    <p>Make sure the Apps Script is deployed and the URL is correct in this file.</p>
+    <br><p>Expected URL format: <code>https://script.google.com/macros/s/…/exec</code></p>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<div class="foot">
+  <span>Showing <strong id="f-visible">–</strong></span>
+  <span class="pipe">|</span>
+  <span>Reached Out <strong id="f-ro">–</strong></span>
+  <span>In Convo <strong id="f-ic">–</strong></span>
+  <span>Converted <strong id="f-cv" style="color:var(--mint)">–</strong></span>
+  <span style="margin-left:auto;color:var(--txt3)">Internal use only · BTSA</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  ▼▼  PASTE YOUR DEPLOYED APPS SCRIPT URL HERE  ▼▼
+// ══════════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4Ws8nRF7cg1Zd-UHQ3rWwQ2ID6scEeM0H8ywK4g-yzwlC3AlnxWtqhWl1HU53TkRNZQ/exec';
+// ══════════════════════════════════════════════════════
+
+const INDUSTRIES = ['—','Retail / Boutique','Streetwear Brand','Screen Print / Embroidery',
+  'Agency','Wholesale / Distributor','E-Commerce','Music / Merch','Sports / Athletics',
+  'Hospitality','Print Shop','Custom Apparel','Other'];
+
+const STATUSES = [
+  { v:'not-contacted',   l:'Not Contacted',   c:'s-nc' },
+  { v:'reached-out',     l:'Reached Out',     c:'s-ro' },
+  { v:'responded',       l:'Responded',       c:'s-rs' },
+  { v:'in-conversation', l:'In Conversation', c:'s-ic' },
+  { v:'converted',       l:'Converted',       c:'s-cv' },
+  { v:'not-interested',  l:'Not Interested',  c:'s-ni' },
+];
+
+// ── State ────────────────────────────────────────────
+let data      = { b2b: [], retail: [] };
+let tab       = 'b2b';
+let filterVal = 'all';
+let sortCol   = 'date';
+let sortDir   = 'desc';
+let saveTimers = {};
+
+// ── Boot ─────────────────────────────────────────────
+window.onload = () => {
+  if (SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycby4Ws8nRF7cg1Zd-UHQ3rWwQ2ID6scEeM0H8ywK4g-yzwlC3AlnxWtqhWl1HU53TkRNZQ/exec') {
+    document.getElementById('setup-banner').classList.remove('show');
+    fetchData();
+  }
+};
+
+// ── Fetch live data ───────────────────────────────────
+async function fetchData() {
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('loading');
+
+  try {
+    const url = `${SCRIPT_URL}?action=getAll&t=${Date.now()}`;
+    const res  = await fetch(url);
+    const json = await res.json();
+
+    if (json.error) throw new Error(json.error);
+
+    data.b2b    = json.b2b    || [];
+    data.retail = json.retail || [];
+
+    document.getElementById('badge-b2b').textContent    = data.b2b.length;
+    document.getElementById('badge-retail').textContent = data.retail.length;
+
+    const now = new Date();
+    document.getElementById('last-sync').textContent =
+      `Synced ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+    document.getElementById('err-state').classList.remove('show');
+    render();
+  } catch(e) {
+    document.getElementById('err-state').classList.add('show');
+    showToast('Connection failed — check script URL', 'error');
+  }
+
+  btn.classList.remove('loading');
+}
+
+// ── Tab switch ────────────────────────────────────────
+function switchTab(t, btn) {
+  tab = t;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('search').value = '';
+  filterVal = 'all';
+  document.querySelectorAll('.f-btn').forEach(b => {
+    b.classList.toggle('on', b.dataset.f === 'all');
+  });
+  render();
+}
+
+// ── Filter ────────────────────────────────────────────
+function setFilter(f, btn) {
+  filterVal = f;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  render();
+}
+
+// ── Sort ──────────────────────────────────────────────
+function sort(col) {
+  sortDir = sortCol === col ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+  sortCol = col;
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('asc','desc'));
+  const cols = ['firstName','email','city','referral','date','industry','status','notes','accountLink'];
+  const idx  = cols.indexOf(col);
+  const ths  = document.querySelectorAll('thead th');
+  if (ths[idx]) ths[idx].classList.add(sortDir);
+  render();
+}
+
+// ── Main render ───────────────────────────────────────
+function render() {
+  const rows   = data[tab];
+  const q      = document.getElementById('search').value.toLowerCase();
+
+  let visible = rows.filter(r => {
+    const match = !q ||
+      (r.firstName + ' ' + r.lastName).toLowerCase().includes(q) ||
+      r.company.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q) ||
+      r.city.toLowerCase().includes(q) ||
+      (r.notes||'').toLowerCase().includes(q);
+    if (!match) return false;
+    if (filterVal === 'all') return true;
+    return r.status === filterVal;
+  });
+
+  // sort
+  visible.sort((a, b) => {
+    let av = a[sortCol] || '', bv = b[sortCol] || '';
+    if (typeof av === 'string') av = av.toLowerCase(), bv = bv.toLowerCase();
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+
+  if (!rows.length) {
+    // Show skeleton rows while loading
+    tbody.innerHTML = Array(6).fill(0).map(() => `
+      <tr>
+        ${Array(9).fill(0).map(() => `<td><div class="skeleton" style="height:14px;width:${60+Math.random()*80}px"></div></td>`).join('')}
+      </tr>`).join('');
+    empty.classList.remove('show');
+    return;
+  }
+
+  empty.classList.toggle('show', visible.length === 0);
+  if (!visible.length) { tbody.innerHTML = ''; updateFooter(visible, rows); updateStats(rows); return; }
+
+  tbody.innerHTML = visible.map((r, i) => {
+    const key = `${tab}::${r.email}`;
+    const stCls = STATUSES.find(s => s.v === (r.status || 'not-contacted'))?.c || 's-nc';
+    const stOpts = STATUSES.map(s =>
+      `<option value="${s.v}" ${r.status === s.v ? 'selected' : ''}>${s.l}</option>`
+    ).join('');
+    const indOpts = INDUSTRIES.map(ind =>
+      `<option value="${ind}" ${r.industry === ind ? 'selected' : ''}>${ind}</option>`
+    ).join('');
+    const dt = r.date ? r.date.slice(5).replace('-','/') : '—'; // MM/DD
+
+    return `
+    <tr id="row-${i}" style="animation:rowIn .25s ease ${i*18}ms both">
+      <td>
+        <div class="c-name">${r.firstName} ${r.lastName}</div>
+        ${r.company ? `<div class="c-co">${r.company}</div>` : ''}
+      </td>
+      <td>
+        <a href="mailto:${r.email}" class="c-email">${r.email}</a>
+        ${r.phone ? `<div class="c-ref">${r.phone}</div>` : ''}
+      </td>
+      <td class="c-loc">${r.city}${r.state ? ', '+r.state : ''}</td>
+      <td class="c-ref">${r.referral || '—'}</td>
+      <td class="c-date">${dt}</td>
+      <td>
+        <select class="i-sel"
+          onchange="fieldChange('${r.email}','industry',this.value)">
+          ${indOpts}
+        </select>
+      </td>
+      <td>
+        <select class="s-sel ${stCls}"
+          onchange="statusChange(this,'${r.email}')">
+          ${stOpts}
+        </select>
+      </td>
+      <td class="n-wrap">
+        <textarea class="n-ta" placeholder="Add notes…"
+          oninput="notesChange(this,'${r.email}')">${r.notes || ''}</textarea>
+      </td>
+      <td>
+        <input class="lnk-input" type="url" placeholder="https://…" value="${r.accountLink||''}"
+          oninput="fieldChange('${r.email}','accountLink',this.value)">
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateFooter(visible, rows);
+  updateStats(rows);
+}
+
+// ── Style status select on change ────────────────────
+function statusChange(sel, email) {
+  STATUSES.forEach(s => sel.classList.remove(s.c));
+  sel.classList.add(STATUSES.find(s => s.v === sel.value)?.c || 's-nc');
+  fieldChange(email, 'status', sel.value);
+}
+
+// ── Debounced save ────────────────────────────────────
+function notesChange(ta, email) {
+  const r = data[tab].find(x => x.email === email);
+  if (r) r.notes = ta.value;
+  scheduleSave(email);
+}
+
+function fieldChange(email, field, value) {
+  const r = data[tab].find(x => x.email === email);
+  if (r) r[field] = value;
+  scheduleSave(email);
+}
+
+function scheduleSave(email) {
+  clearTimeout(saveTimers[email]);
+  saveTimers[email] = setTimeout(() => saveRow(email), 1200);
+}
+
+async function saveRow(email) {
+  if (SCRIPT_URL === 'https://script.google.com/macros/s/AKfycby4Ws8nRF7cg1Zd-UHQ3rWwQ2ID6scEeM0H8ywK4g-yzwlC3AlnxWtqhWl1HU53TkRNZQ/exec') {
+    showToast('Script URL not set — edits not saved', 'error');
+    return;
+  }
+
+  const r = data[tab].find(x => x.email === email);
+  if (!r) return;
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action:      'updateRow',
+        segment:     tab,
+        email:       r.email,
+        industry:    r.industry    || '',
+        status:      r.status      || 'not-contacted',
+        notes:       r.notes       || '',
+        accountLink: r.accountLink || '',
+      })
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    showToast('Saved to Google Sheets ✓', 'saved');
+  } catch(e) {
+    showToast('Save failed — check connection', 'error');
+  }
+}
+
+// ── Stats ─────────────────────────────────────────────
+function updateStats(rows) {
+  const counts = {};
+  STATUSES.forEach(s => counts[s.v] = 0);
+  rows.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+  const total = rows.length;
+  const rate  = total ? Math.round((counts['converted'] / total) * 100) : 0;
+
+  document.getElementById('st-total').textContent = total;
+  document.getElementById('st-nc').textContent    = counts['not-contacted'] || 0;
+  document.getElementById('st-ic').textContent    = counts['in-conversation'] || 0;
+  document.getElementById('st-cv').textContent    = counts['converted'] || 0;
+  document.getElementById('st-rate').textContent  = rate + '%';
+}
+
+function updateFooter(visible, all) {
+  const counts = {};
+  STATUSES.forEach(s => counts[s.v] = 0);
+  all.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
+  document.getElementById('f-visible').textContent = visible.length + ' of ' + all.length;
+  document.getElementById('f-ro').textContent = counts['reached-out'] || 0;
+  document.getElementById('f-ic').textContent = counts['in-conversation'] || 0;
+  document.getElementById('f-cv').textContent = counts['converted'] || 0;
+}
+
+// ── Export ────────────────────────────────────────────
+function exportCSV() {
+  const rows = data[tab];
+  const headers = ['First Name','Last Name','Company','Email','Phone','City','State',
+    'Referral Source','Signed Up','Industry','Outreach Status','Notes','Account Link'];
+  const csv = [headers, ...rows.map(r => [
+    r.firstName, r.lastName, r.company, r.email, r.phone,
+    r.city, r.state, r.referral, r.date,
+    r.industry, r.status, (r.notes||'').replace(/\n/g,' '), r.accountLink
+  ])].map(row => row.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `btsa_${tab}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── Toast ─────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+
+<style>
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</body>
+</html>
