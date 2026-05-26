@@ -564,10 +564,8 @@ let saveTimers = {};
 
 // ── Boot ─────────────────────────────────────────────
 window.onload = () => {
-  if (SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycby4Ws8nRF7cg1Zd-UHQ3rWwQ2ID6scEeM0H8ywK4g-yzwlC3AlnxWtqhWl1HU53TkRNZQ/exec') {
-    document.getElementById('setup-banner').classList.remove('show');
-    fetchData();
-  }
+  document.getElementById('setup-banner').classList.remove('show');
+  fetchData();
 };
 
 // ── Fetch live data ───────────────────────────────────
@@ -753,11 +751,6 @@ function scheduleSave(email) {
 }
 
 async function saveRow(email) {
-  if (SCRIPT_URL === 'https://script.google.com/macros/s/AKfycby4Ws8nRF7cg1Zd-UHQ3rWwQ2ID6scEeM0H8ywK4g-yzwlC3AlnxWtqhWl1HU53TkRNZQ/exec') {
-    showToast('Script URL not set — edits not saved', 'error');
-    return;
-  }
-
   const r = data[tab].find(x => x.email === email);
   if (!r) return;
 
