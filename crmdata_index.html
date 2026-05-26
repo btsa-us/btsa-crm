@@ -569,35 +569,51 @@ window.onload = () => {
 };
 
 // ── Fetch live data ───────────────────────────────────
-async function fetchData() {
+function fetchData() {
   const btn = document.getElementById('sync-btn');
   btn.classList.add('loading');
 
-  try {
-    const url = `${SCRIPT_URL}?action=getAll&t=${Date.now()}`;
-    const res  = await fetch(url);
-    const json = await res.json();
+  // Remove any existing JSONP script tag
+  const old = document.getElementById('jsonp-loader');
+  if (old) old.remove();
 
-    if (json.error) throw new Error(json.error);
+  // Set a timeout in case it hangs
+  const timeout = setTimeout(() => {
+    btn.classList.remove('loading');
+    document.getElementById('err-state').classList.add('show');
+    showToast('Connection timed out', 'error');
+  }, 10000);
 
-    data.b2b    = json.b2b    || [];
-    data.retail = json.retail || [];
+  window.__btsa_callback = function(json) {
+    clearTimeout(timeout);
+    btn.classList.remove('loading');
+    try {
+      if (json.error) throw new Error(json.error);
+      data.b2b    = json.b2b    || [];
+      data.retail = json.retail || [];
+      document.getElementById('badge-b2b').textContent    = data.b2b.length;
+      document.getElementById('badge-retail').textContent = data.retail.length;
+      const now = new Date();
+      document.getElementById('last-sync').textContent =
+        `Synced ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+      document.getElementById('err-state').classList.remove('show');
+      render();
+    } catch(e) {
+      document.getElementById('err-state').classList.add('show');
+      showToast('Connection failed — check script URL', 'error');
+    }
+  };
 
-    document.getElementById('badge-b2b').textContent    = data.b2b.length;
-    document.getElementById('badge-retail').textContent = data.retail.length;
-
-    const now = new Date();
-    document.getElementById('last-sync').textContent =
-      `Synced ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-    document.getElementById('err-state').classList.remove('show');
-    render();
-  } catch(e) {
+  const script = document.createElement('script');
+  script.id  = 'jsonp-loader';
+  script.src = `${SCRIPT_URL}?action=getAll&callback=__btsa_callback&t=${Date.now()}`;
+  script.onerror = () => {
+    clearTimeout(timeout);
+    btn.classList.remove('loading');
     document.getElementById('err-state').classList.add('show');
     showToast('Connection failed — check script URL', 'error');
-  }
-
-  btn.classList.remove('loading');
+  };
+  document.body.appendChild(script);
 }
 
 // ── Tab switch ────────────────────────────────────────
