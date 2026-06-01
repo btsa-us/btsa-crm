@@ -48,7 +48,6 @@ body {
   overflow-x: hidden;
 }
 
-/* HEADER */
 header {
   display: flex;
   align-items: center;
@@ -89,7 +88,16 @@ header {
 .hstat strong { color: var(--text); font-weight: 600; }
 .hstat-dot { width: 5px; height: 5px; border-radius: 50%; }
 
-/* TABS */
+/* subtle sync indicator in header */
+#sync-indicator {
+  font-size: 10px;
+  color: var(--text3);
+  opacity: 0;
+  transition: opacity 0.4s;
+  margin-left: 8px;
+}
+#sync-indicator.visible { opacity: 1; }
+
 .tabs-bar {
   display: flex;
   align-items: center;
@@ -132,7 +140,6 @@ header {
 }
 .tab.active .tab-count { color: var(--text2); }
 
-/* PROGRESS */
 .progress-bar-wrap {
   padding: 10px 28px;
   background: var(--surface);
@@ -147,7 +154,6 @@ header {
 .progress-fill { height: 100%; background: var(--text); border-radius: 2px; transition: width 0.3s; }
 .progress-pct { font-size: 11px; color: var(--text); font-weight: 700; min-width: 32px; }
 
-/* TOOLBAR */
 .toolbar {
   display: flex;
   align-items: center;
@@ -220,9 +226,7 @@ header {
 }
 .tbtn:hover { color: var(--text); border-color: rgba(232,230,222,0.3); }
 
-/* TABLE */
 .table-wrap { overflow-x: auto; padding: 0 28px 60px; }
-
 table { width: 100%; border-collapse: collapse; min-width: 1100px; }
 
 thead th {
@@ -247,7 +251,6 @@ thead th.sorted { color: var(--text); }
 
 tbody tr { border-bottom: 1px solid var(--border); transition: background 0.08s; }
 tbody tr:hover { background: var(--surface2); }
-
 tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weight: 400; color: var(--text2); }
 
 .td-date { color: var(--text3); font-size: 11px; white-space: nowrap; }
@@ -269,7 +272,6 @@ tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weig
 .source-badge.b2b { background: var(--b2b-dim); color: var(--b2b); }
 .source-badge.d2c { background: var(--d2c-dim); color: var(--d2c); }
 
-/* EDITABLE SELECTS & INPUTS */
 .status-select {
   background: var(--surface3);
   border: 1px solid var(--border);
@@ -338,11 +340,9 @@ tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weig
 .link-input:focus { border-bottom-color: var(--border2); }
 .link-input::placeholder { color: var(--text3); }
 
-/* EMPTY */
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
 .empty-state p { margin-top: 8px; font-size: 11px; font-weight: 300; }
 
-/* TOAST */
 #toast {
   position: fixed;
   bottom: 28px;
@@ -363,7 +363,6 @@ tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weig
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* EXPAND */
 .msg-cell { cursor: pointer; }
 .row-expanded td { background: var(--surface2) !important; }
 .expand-panel {
@@ -378,7 +377,6 @@ tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weig
 }
 .expand-panel strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 
-/* STATS CARDS */
 .stats-bar {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -437,6 +435,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; font-size: 12px; font-weig
     <div class="hstat" style="margin-left:8px; padding-left:16px; border-left:1px solid var(--border);">
       <span>total</span> <strong id="hs-total">—</strong>
     </div>
+    <span id="sync-indicator">↻ syncing…</span>
   </div>
 </header>
 
@@ -552,38 +551,119 @@ const STATUS_OPTS = [
   { val: 'Not a Fit',     label: 'Not a Fit' },
 ];
 
-const ACCOUNT_TYPES = ['—', 'Wholesale', 'Retail', 'Distributor', 'Brand', 'Other'];
-
+const ACCOUNT_TYPES  = ['—', 'Wholesale', 'Retail', 'Distributor', 'Brand', 'Other'];
 const INDUSTRY_TYPES = ['—', 'Apparel/Brand', 'Apparel/Streetwear', 'Entertainment', 'Agency', 'Workwear', 'Custom/Print', 'Promotional', 'Other'];
 
-let DATA = [];
-let activeTab = 'all';
+let DATA        = [];
+let activeTab   = 'all';
 let activeFilter = 'all';
 let searchQuery = '';
-let sortCol = 'date';
-let sortDir = -1;
+let sortCol     = 'date';
+let sortDir     = -1;
 let expandedRow = null;
 
-// ── FETCH ──
-async function fetchData() {
-  showLoading(true);
+// ── EDIT-LOCK: track which row IDs are being actively edited ──
+const editingIds = new Set();
+let   lastEditTime = 0;   // timestamp of most recent user edit
+const EDIT_COOLDOWN = 8000; // ms to wait after last edit before silent refresh may merge
+
+function markEditing(id) {
+  editingIds.add(id);
+  lastEditTime = Date.now();
+}
+
+function unmarkEditing(id) {
+  editingIds.delete(id);
+  lastEditTime = Date.now();
+}
+
+function isUserEditing() {
+  // True if any field is focused OR if a save happened very recently
+  if (editingIds.size > 0) return true;
+  if (Date.now() - lastEditTime < EDIT_COOLDOWN) return true;
+  // Also check if any input/select inside the table is focused
+  const active = document.activeElement;
+  if (active && active.closest('#table-body')) return true;
+  return false;
+}
+
+// ── FETCH: initial load (shows loading state) ──
+async function fetchData(silent = false) {
+  if (!silent) showLoading(true);
+  else {
+    const ind = document.getElementById('sync-indicator');
+    if (ind) { ind.classList.add('visible'); }
+  }
+
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=getAll`);
+    const res  = await fetch(`${SCRIPT_URL}?action=getAll&t=${Date.now()}`);
     const json = await res.json();
 
-    const b2b = (json.b2b || []).map(r => normalizeRow(r, 'b2b'));
-    const d2c = (json.retail || []).map(r => normalizeRow(r, 'd2c'));
-    DATA = [...b2b, ...d2c];
-    renderTable();
+    const b2b   = (json.b2b    || []).map(r => normalizeRow(r, 'b2b'));
+    const d2c   = (json.retail || []).map(r => normalizeRow(r, 'd2c'));
+    const fresh = [...b2b, ...d2c];
+
+    if (!silent) {
+      // First load — just set everything
+      DATA = fresh;
+      renderTable();
+    } else {
+      // Silent merge: preserve in-memory edits for any row currently being edited
+      mergeData(fresh);
+    }
   } catch(err) {
-    document.getElementById('table-body').innerHTML =
-      '<tr><td colspan="15"><div class="empty-state"><p style="color:#cf6e6e">Could not load data. Check Apps Script URL and deployment.</p></div></td></tr>';
+    if (!silent) {
+      document.getElementById('table-body').innerHTML =
+        '<tr><td colspan="15"><div class="empty-state"><p style="color:#cf6e6e">Could not load data. Check Apps Script URL and deployment.</p></div></td></tr>';
+    }
+    // Silent failures are ignored — just keep existing data
+  } finally {
+    const ind = document.getElementById('sync-indicator');
+    if (ind) ind.classList.remove('visible');
   }
 }
 
+// ── MERGE: blend fresh sheet data with any in-progress local edits ──
+function mergeData(fresh) {
+  const freshMap = new Map(fresh.map(r => [r.id, r]));
+
+  // Update existing rows: keep local edits for rows being edited, take fresh otherwise
+  DATA = DATA.map(local => {
+    const incoming = freshMap.get(local.id);
+    if (!incoming) return local; // row gone from sheet? keep local copy
+    if (editingIds.has(local.id)) return local; // actively editing — don't overwrite
+    // Preserve locally-saved editable fields even outside active edit window
+    return {
+      ...incoming,
+      status:      local.status      !== incoming.status      ? local.status      : incoming.status,
+      accountType: local.accountType !== incoming.accountType ? local.accountType : incoming.accountType,
+      industry:    local.industry    !== incoming.industry    ? local.industry    : incoming.industry,
+      notes:       local.notes       !== incoming.notes       ? local.notes       : incoming.notes,
+      links:       local.links       !== incoming.links       ? local.links       : incoming.links,
+    };
+  });
+
+  // Add any brand-new rows from sheet that aren't in DATA yet
+  fresh.forEach(r => {
+    if (!DATA.find(d => d.id === r.id)) DATA.push(r);
+  });
+
+  // Re-render without wiping the table — patch counts & stats only if no input is focused
+  if (!isUserEditing()) {
+    renderTable();
+  } else {
+    updateCounts(); // just refresh the numbers silently
+  }
+}
+
+// ── AUTO-REFRESH every 3 minutes, silently ──
+setInterval(() => {
+  fetchData(true); // always silent on interval
+}, 3 * 60 * 1000);
+
 function normalizeRow(r, source) {
   return {
-    id:          r.id || (source + '_' + r._date + '_' + r.email),
+    id:          r.id || (source + '_' + (r._date||r.date||'') + '_' + (r.email||'')),
     date:        formatDate(r._date || r.date || r['Signup Date'] || ''),
     firstName:   r.firstName   || r['First Name']  || '',
     lastName:    r.lastName    || r['Last Name']   || '',
@@ -594,10 +674,10 @@ function normalizeRow(r, source) {
     state:       r.zoneCode    || r['State']       || '',
     referral:    r.referral_source || r['Referral Source'] || '',
     source,
-    accountType: r.accountType || r['Account Type'] || '',
-    industry:    r.industry    || r['Industry/Type'] || '',
+    accountType: r.accountType || r['Account Type']    || '',
+    industry:    r.industry    || r['Industry/Type']   || '',
     status:      r.status      || r['Outreach Status'] || '',
-    notes:       r.notes       || r['Outreach Notes'] || '',
+    notes:       r.notes       || r['Outreach Notes']  || '',
     links:       r.links       || r['Account Info/Links'] || '',
   };
 }
@@ -622,7 +702,11 @@ async function saveRow(id, field, value) {
   try {
     await fetch(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'updateRow', id: row.id, source: row.source, status: row.status, accountType: row.accountType, industry: row.industry, notes: row.notes, links: row.links }),
+      body: JSON.stringify({
+        action: 'updateRow', id: row.id, source: row.source,
+        status: row.status, accountType: row.accountType,
+        industry: row.industry, notes: row.notes, links: row.links
+      }),
       headers: { 'Content-Type': 'text/plain' }
     });
     showToast('Saved ✓');
@@ -657,50 +741,48 @@ function filteredData() {
 
 // ── COUNTS ──
 function updateCounts() {
-  const all  = DATA.length;
-  const b2b  = DATA.filter(r => r.source === 'b2b').length;
-  const d2c  = DATA.filter(r => r.source === 'd2c').length;
-  document.getElementById('tc-all').textContent  = all;
-  document.getElementById('tc-b2b').textContent  = b2b;
-  document.getElementById('tc-d2c').textContent  = d2c;
-  document.getElementById('hs-b2b').textContent  = b2b;
-  document.getElementById('hs-d2c').textContent  = d2c;
+  const all = DATA.length;
+  const b2b = DATA.filter(r => r.source === 'b2b').length;
+  const d2c = DATA.filter(r => r.source === 'd2c').length;
+  document.getElementById('tc-all').textContent   = all;
+  document.getElementById('tc-b2b').textContent   = b2b;
+  document.getElementById('tc-d2c').textContent   = d2c;
+  document.getElementById('hs-b2b').textContent   = b2b;
+  document.getElementById('hs-d2c').textContent   = d2c;
   document.getElementById('hs-total').textContent = all;
 
-  // Stats cards — based on full dataset regardless of tab
   const notContacted = DATA.filter(r => !r.status || r.status === '' || r.status === 'Not Contacted').length;
-  const inConv       = DATA.filter(r => r.status === 'Contacted' || r.status === 'Interested' || r.status === 'Follow Up').length;
+  const inConv       = DATA.filter(r => ['Contacted','Interested','Follow Up'].includes(r.status)).length;
   const converted    = DATA.filter(r => r.status === 'Converted').length;
   const rate         = all ? Math.round(converted / all * 100) : 0;
 
-  document.getElementById('stat-total').textContent       = all;
+  document.getElementById('stat-total').textContent        = all;
   document.getElementById('stat-notcontacted').textContent = notContacted;
-  document.getElementById('stat-inconv').textContent      = inConv;
-  document.getElementById('stat-converted').textContent   = converted;
-  document.getElementById('stat-rate').textContent        = rate + '%';
+  document.getElementById('stat-inconv').textContent       = inConv;
+  document.getElementById('stat-converted').textContent    = converted;
+  document.getElementById('stat-rate').textContent         = rate + '%';
 
   const visible = activeTab === 'all' ? DATA : DATA.filter(r => r.source === activeTab);
-  const acted = visible.filter(r => r.status && r.status !== '' && r.status !== 'Not Contacted').length;
-  const pct = visible.length ? Math.round(acted / visible.length * 100) : 0;
-  document.getElementById('prog-fill').style.width = pct + '%';
-  document.getElementById('prog-pct').textContent = pct + '%';
+  const acted   = visible.filter(r => r.status && r.status !== '' && r.status !== 'Not Contacted').length;
+  const pct     = visible.length ? Math.round(acted / visible.length * 100) : 0;
+  document.getElementById('prog-fill').style.width  = pct + '%';
+  document.getElementById('prog-pct').textContent   = pct + '%';
   document.getElementById('prog-detail').textContent = acted + ' of ' + visible.length + ' contacted';
 }
 
-// ── STATUS CLASS ──
 function statusClass(s) {
-  if (s === 'Contacted')     return 's-contacted';
-  if (s === 'Interested')    return 's-interested';
-  if (s === 'Follow Up')     return 's-followup';
-  if (s === 'Converted')     return 's-converted';
-  if (s === 'Not a Fit')     return 's-notfit';
+  if (s === 'Contacted')  return 's-contacted';
+  if (s === 'Interested') return 's-interested';
+  if (s === 'Follow Up')  return 's-followup';
+  if (s === 'Converted')  return 's-converted';
+  if (s === 'Not a Fit')  return 's-notfit';
   return '';
 }
 
 // ── RENDER ──
 function renderTable() {
   const tbody = document.getElementById('table-body');
-  const rows = filteredData();
+  const rows  = filteredData();
   tbody.innerHTML = '';
 
   if (!rows.length) {
@@ -782,6 +864,22 @@ function updateField(id, field, value) {
 }
 
 // ── EVENTS ──
+document.getElementById('table-body').addEventListener('focusin', e => {
+  const el = e.target;
+  if (el.dataset.id) markEditing(el.dataset.id);
+});
+
+document.getElementById('table-body').addEventListener('focusout', e => {
+  const el = e.target;
+  if (el.dataset.id) {
+    // Small delay so blur → focus on same row doesn't flicker the lock
+    setTimeout(() => {
+      const stillFocused = document.querySelector(`[data-id="${el.dataset.id}"]:focus`);
+      if (!stillFocused) unmarkEditing(el.dataset.id);
+    }, 200);
+  }
+});
+
 document.getElementById('table-body').addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.id && el.dataset.field) updateField(el.dataset.id, el.dataset.field, el.value);
@@ -790,8 +888,11 @@ document.getElementById('table-body').addEventListener('change', e => {
 document.getElementById('table-body').addEventListener('input', e => {
   const el = e.target;
   if (el.tagName === 'INPUT' && el.dataset.id && el.dataset.field) {
+    markEditing(el.dataset.id);
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => updateField(el.dataset.id, el.dataset.field, el.value), 800);
+    el._timer = setTimeout(() => {
+      updateField(el.dataset.id, el.dataset.field, el.value);
+    }, 800);
   }
 });
 
@@ -833,9 +934,14 @@ document.querySelectorAll('thead th[data-col]').forEach(th => {
     const col = th.dataset.col;
     if (sortCol === col) { sortDir *= -1; }
     else { sortCol = col; sortDir = 1; }
-    document.querySelectorAll('thead th').forEach(h => { h.classList.remove('sorted'); const a = h.querySelector('.sort-arrow'); if(a) a.textContent=''; });
+    document.querySelectorAll('thead th').forEach(h => {
+      h.classList.remove('sorted');
+      const a = h.querySelector('.sort-arrow'); if(a) a.textContent='';
+    });
     th.classList.add('sorted');
-    const arr = th.querySelector('.sort-arrow') || (() => { const s = document.createElement('span'); s.className='sort-arrow'; th.appendChild(s); return s; })();
+    const arr = th.querySelector('.sort-arrow') || (() => {
+      const s = document.createElement('span'); s.className='sort-arrow'; th.appendChild(s); return s;
+    })();
     arr.textContent = sortDir === 1 ? ' ↓' : ' ↑';
     renderTable();
   });
@@ -864,8 +970,8 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-setInterval(fetchData, 60000);
-fetchData();
+// Initial load
+fetchData(false);
 </script>
 </body>
 </html>
